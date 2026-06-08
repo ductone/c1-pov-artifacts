@@ -1,0 +1,84 @@
+version: "1"
+app_name: Crewline HR
+app_description: Crewline HR App
+connect:
+  base_url: "${BASE_URL}"
+  auth:
+    type: api_key
+    api_key:
+      header: "Authorization"
+      prefix: "ApiKey"
+      key: "${API_KEY}"
+  request_defaults:
+    content_type: application/json
+    headers:
+      Accept: application/json
+    query_params:
+      limit: "100"
+actions:
+  update_email:
+    name: Update Employee Email
+    description: Update an employee's email address
+    action_type:
+      - account
+    arguments:
+      employee_id:
+        name: Crewline ID
+        type: string
+        required: true
+        description: The Crewline ID of the employee to update
+      email_address:
+        name: Email Address
+        type: string
+        required: true
+        description: The new email address for the employee
+    request:
+      method: PUT
+      url: 'tmpl:/api/tenants/${TENANT_ID}/employees/{{.action.args.employee_id}}'
+      headers:
+        Content-Type: application/json
+      body: |
+        tmpl:{
+          "email": "{{.action.args.email_address}}"
+        }
+    success_condition: cel:response.status_code == 200
+
+resource_types:
+  user:
+    name: User
+    description: Employee
+    traits:
+      - user
+    list:
+      request:
+        url: /api/tenants/${TENANT_ID}/employees
+      pagination:
+        strategy: page
+        limit_param: "limit"
+        page_param: "page"
+        total_path: "pagination.pages"
+      response:
+        items_path: employees
+        mapping_type: resource
+        resource_mapping:
+          id: cel:item.id
+          display_name: cel:item.name
+          user_traits:
+            login: cel:item.email
+            status: 'cel:item.status == "ACTIVE" ? "enabled":item.status == "TERMINATED" || item.status == "SUSPENDED" ? "disabled":"disabled"'
+            status_details: cel:item.status
+            email: cel:item.email
+            created_at: cel:item.createdAt
+            profile:
+              email: cel:item.email
+              department: cel:item.department.name
+              job_title: cel:item.role
+              employee_type: cel:item.employeeType
+              managerEmail: 'cel:item.manager == null ? null : item.manager.email'
+              start_date: cel:item.startDate
+              location: cel:item.address.country
+              employee_id: cel:item.employeeNumber
+              external_id: cel:item.id
+              employment_status: cel:item.status
+              timezone: cel:item.timezone
+    skip_entitlements_and_grants: true
